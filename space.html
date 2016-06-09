@@ -1,0 +1,165 @@
+<!doctype html> 
+<html lang="en"> 
+<head> 
+  <meta charset="UTF-8" />
+  <meta http-equiv='cache-control' content='no-cache'>
+  <meta http-equiv='expires' content='0'>
+  <meta http-equiv='pragma' content='no-cache'>
+  <title>Space Invader</title>
+  <script src="//cdn.jsdelivr.net/phaser/2.2.2/phaser.min.js"></script>
+  <style type="text/css">
+    body {
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <script type="text/javascript">
+    var game = new Phaser.Game(800, 600, Phaser.AUTO, '', { preload: preload, create: create, update: update })
+
+    function preload() {
+      game.stage.backgroundColor = '#000000'
+      game.load.image('player', 'assets/player.png?v=1')
+      game.load.image('bullet', 'assets/player_bullet.png?v=1')
+      game.load.image('enemyBullet', 'assets/enemy_bullet.png?v=1')
+      game.load.image('enemy1', 'assets/enemy1.png?v=1')
+      game.load.image('enemy2', 'assets/enemy2.png?v=1')
+      game.load.image('enemy3', 'assets/enemy3.png?v=1')
+    }
+    var player
+    var bullet
+    var bullets
+    var bulletTime =0
+
+    var enemy
+    var enemies
+    var livingEnemies = []
+    var enemyBullet
+    var firingTimer = 0
+
+    var keyPad
+
+    var score = 0
+    var scoreText
+
+    function create() {
+      game.physics.startSystem(Phaser.Physics.ARCADE)
+
+      keyPad = game.input.keyboard.createCursorKeys()  
+      //add player
+      player = game.add.sprite(50, 550, 'player')
+      game.physics.arcade.enable(player)
+      player.body.collideWorldBounds = true
+      player.enableBody = true
+      player.body.immovable = true
+      player.events.onOutOfBounds.add(function () { console.log('moo') } , this)
+      //add players bullet
+      bullets = game.add.group()
+      bullets.enableBody = true
+      bullets.createMultiple(10, 'bullet')
+      bullets.callAll('events.onOutOfBounds.add', 'events.onOutOfBounds', resetBullet, this)
+      bullets.setAll('checkWorldBounds', true)
+      spaceKey = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR)
+      bulletSP = game.add.sprite(1000, 1000, 'bullet')
+      game.physics.arcade.enable(bulletSP)
+      //add enemy bullet
+      enemyBullets = game.add.group()
+      enemyBullets.enableBody = true
+      enemyBullets.createMultiple(30, 'enemyBullet')
+      // enemyBullets.setAll('anchor.x', 0.5)
+      // enemyBullets.setAll('anchor.y', 1)
+      enemyBullets.setAll('outOfBoundsKill', true)
+      enemyBullets.setAll('checkWorldBounds', true)
+      // enemyBulletSP = game.add.sprite(1000, 1000, 'enemyBullet')
+      // game.physics.arcade.enable(enemyBulletSP)
+      // Add enemies
+      enemies = game.add.group()  
+      for (var i = 0; i < 5; i++) {
+        for (var j = 0; j < 3; j++) {
+          var en
+          if (j == 0)
+            en = 'enemy1'
+          if (j == 1)
+            en = 'enemy2'
+          if (j == 2)
+            en = 'enemy3'
+          enemy = enemies.create(0+i*130, 55+j*70, en)
+          game.physics.arcade.enable(enemy)
+          enemy.body.collideWorldBounds = true    
+          enemy.enableBody = true
+          enemy.body.immovable = true
+          enemies.add(enemy)
+          console.log('enemy: ', i,',',j)
+        }
+      }
+      game.add.tween(enemies).to( { x: 200 }, 2000, Phaser.Easing.Linear.None, true, 0, 1000, true).onLoop.add(descend, this)
+      scoreText = game.add.text(16, 16, 'score: 0', { fontSize: '32px', fill: '#FFF' });
+    }
+    function update() {
+      //controls
+      if (keyPad.left.isDown) {
+        player.body.velocity.x = -250
+        console.log('left')
+      } else if (keyPad.right.isDown) {
+        player.body.velocity.x = 250
+        console.log('right')
+      } else {
+        player.body.velocity.x = 0
+      }
+      if (spaceKey.isDown) {
+        fireBullet()
+        // enemyFire()
+        console.log('spacebar')
+      }
+      if (game.time.now > firingTimer){
+        enemyFire();
+      }
+      //enable collisions
+      game.physics.arcade.collide(bullets, enemies, hit)
+      game.physics.arcade.collide(enemyBullets, player, hit)
+      
+    }
+    function hit(bullets, enemy) { //for player
+      enemy.kill()
+      bullets.kill()
+      score += 10
+      scoreText.text = 'Score: ' + score
+    }
+    function fireBullet () { //for player
+      if (game.time.now > bulletTime) {
+        bullet = bullets.getFirstExists(false)
+        if (bullet) {
+          bullet.reset(player.x + 22, player.y - 20)
+          bullet.body.velocity.y = -300
+          bulletTime = game.time.now + 250
+        }
+      }
+    }
+    function enemyFire () {
+    //  Grab the first bullet we can from the pool
+    enemyBullet = enemyBullets.getFirstExists(false)
+    livingEnemies.length=0
+    enemies.forEachAlive(function(enemy){
+    // put every living enemy in an array
+        livingEnemies.push(enemy);
+    });
+    if (enemyBullet && livingEnemies.length > 0) {
+      var random=game.rnd.integerInRange(0,livingEnemies.length-1)
+      // randomly select one of them
+      var shooter=livingEnemies[random]
+      // And fire the bullet from this enemy
+      enemyBullet.reset(shooter.x+21, shooter.y+20)
+      enemyBullet.body.velocity.y = 300
+      firingTimer = game.time.now + 200*random
+      }
+    }
+    function resetBullet (bullet) {
+      bullet.kill()
+    }
+    function descend() {
+      enemies.y += 10;
+    }
+</script>
+</body>
+</html>
